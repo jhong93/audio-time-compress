@@ -2,3 +2,4 @@ python-vlc
 pynput
 scipy
 numpy
+sounddevice
