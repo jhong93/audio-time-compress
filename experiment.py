@@ -48,7 +48,6 @@ def read_audio_file(filename):
 def init_window():
     window = curses.initscr()
     curses.cbreak()
-    curses.noecho()
     window.nodelay(True)
     return window
 
