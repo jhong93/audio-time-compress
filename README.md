@@ -2,4 +2,3 @@
 
 Requirements:
 - portaudio19-dev
-- vlc
