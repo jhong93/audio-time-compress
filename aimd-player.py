@@ -19,17 +19,17 @@ TMP_DIR = '/tmp/wav'
 MIN_PLAY_RATE = 1.0
 MAX_PLAY_RATE = 4.0
 
-DROP_KEY = Key.ctrl_r
+DROP_KEY = Key.shift_r
 
 DropEvent = namedtuple('DropEvent', ['chunk', 'rate'])
 
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('filename', type=str, help='File to play')
-    parser.add_argument('-a', '--additive-increase', type=float,
+    parser.add_argument('-up', '--additive-increase', type=float,
                         default=0.05, dest= 'add_inc',
                         help='Increase in playback rate for each window len')
-    parser.add_argument('-m', '--multiplicative-decrease', type=float,
+    parser.add_argument('-down', '--multiplicative-decrease', type=float,
                         default=0.8, dest='mult_dec',
                         help='Decrease in playback rate on user input')
     parser.add_argument('-c', '--chunk-len', type=float, default=1.0,
@@ -38,7 +38,11 @@ def get_args():
     parser.add_argument('-w', '--window-len', type=float, default=1.0,
                         dest='window_len',
                         help='Window length in seconds for rate increases')
-    parser.add_argument('-i', '--initial-rate', type=float, default=1.0,
+    parser.add_argument('-a', '--algorithm', type=str, dest='algorithm',
+                        choices=['fixed','random'],
+                        default='fixed',
+                        help='Algorithm to increase playback rate')
+    parser.add_argument('--initial-rate', type=float, default=1.0,
                         dest='init_rate',
                         help='Initial playback rate')
     return parser.parse_args()
@@ -65,13 +69,28 @@ def read_audio_file(filename):
     return wavfile.read(infile)
 
 
-def speed_up_chunk(rate, chunk):
-    assert (rate >= 1.0)
+def fixed_sample(rate, chunk):
     result_len = math.ceil(len(chunk) / rate)
     result = np.zeros(result_len, dtype=np.int16)
     for i in range(result_len):
         result[i] = chunk[math.floor(i * rate)]
     return result
+
+
+def random_sample(rate, chunk):
+    result_len = math.ceil(len(chunk) / rate)
+    choice_idxs = np.sort(np.random.choice(len(chunk), result_len, replace=False))
+    return chunk[choice_idxs]
+
+
+def speed_up_chunk(rate, chunk, algorithm):
+    assert (rate >= 1.0)
+    if algorithm == 'fixed':
+        return fixed_sample(rate, chunk)
+    elif algorithm == 'random':
+        return random_sample(rate, chunk)
+    else:
+        raise Exception('Invalid algorithm: {}'.format(algorithm))
 
 
 def print_info(curr_chunk, num_chunks, rate):
@@ -80,7 +99,8 @@ def print_info(curr_chunk, num_chunks, rate):
     sys.stdout.flush()
 
 
-def main(filename, add_inc, mult_dec, chunk_len, window_len, init_rate):
+def main(filename, add_inc, mult_dec, chunk_len, window_len, init_rate,
+         algorithm):
     fs, raw_audio = read_audio_file(filename)
     chunk_size = int(fs * chunk_len)
     num_chunks = math.ceil(len(raw_audio) / chunk_size)
@@ -88,6 +108,7 @@ def main(filename, add_inc, mult_dec, chunk_len, window_len, init_rate):
     print ('Original frequency {}Hz'.format(fs))
     print ('Chunk size: {} samples'.format(chunk_size))
     print ('Chunk count: {}'.format(num_chunks))
+    print ('Press {} to reduce playback speed'.format(DROP_KEY))
 
     curr_rate = init_rate
     curr_chunk = 0
@@ -101,7 +122,7 @@ def main(filename, add_inc, mult_dec, chunk_len, window_len, init_rate):
         window_time = 0.0
         processed_chunks = []
 
-        next_chunk = speed_up_chunk(curr_rate, get_chunk(curr_chunk))
+        next_chunk = speed_up_chunk(curr_rate, get_chunk(curr_chunk), algorithm)
         processed_chunks.append(next_chunk)
 
         while curr_chunk < num_chunks:
@@ -109,7 +130,7 @@ def main(filename, add_inc, mult_dec, chunk_len, window_len, init_rate):
             sd.play(next_chunk, fs)
             curr_chunk += 1
 
-            next_chunk = speed_up_chunk(curr_rate, get_chunk(curr_chunk))
+            next_chunk = speed_up_chunk(curr_rate, get_chunk(curr_chunk), algorithm)
             processed_chunks.append(next_chunk)
 
             print_info(curr_chunk, num_chunks, curr_rate)
