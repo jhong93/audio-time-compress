@@ -3,3 +3,4 @@ pynput
 scipy
 numpy
 sounddevice
+pynput
