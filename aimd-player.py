@@ -119,6 +119,17 @@ def speed_up_chunk(chunk, expected_result_len, algorithm):
         raise Exception('Invalid algorithm: {}'.format(algorithm))
 
 
+def readjust_pitch(chunk, rate, samples=int(OUTPUT_FS / 5)):
+    results = []
+    for i in range(math.ceil(len(chunk) / samples)):
+        freq = np.fft.rfft(chunk[i * samples:(i + 1) * samples])
+        shift = - math.floor((rate - 1.0) * 100)
+        freq = np.roll(freq, shift)
+        freq[shift:] = 0
+        results.append(np.fft.irfft(freq).astype(np.int16))
+    return np.concatenate(results)
+
+
 def print_info(curr_chunk, num_chunks, rate):
     sys.stdout.write('\r[{:6.2f}%] @ {:6.4f}x'.format(
                      curr_chunk / num_chunks * 100, rate))
@@ -155,6 +166,7 @@ def main(filename, add_inc, mult_dec, chunk_len, window_len, init_rate,
         next_chunk = speed_up_chunk(get_chunk(curr_chunk),
                                     math.ceil(chunk_len * OUTPUT_FS / curr_rate),
                                     algorithm)
+        # next_chunk = readjust_pitch(next_chunk, curr_rate)
         processed_chunks.append(next_chunk)
 
         while curr_chunk < num_chunks:
@@ -165,6 +177,7 @@ def main(filename, add_inc, mult_dec, chunk_len, window_len, init_rate,
             next_chunk = speed_up_chunk(get_chunk(curr_chunk),
                                         math.ceil(chunk_len * OUTPUT_FS / curr_rate),
                                         algorithm)
+            # next_chunk = readjust_pitch(next_chunk, curr_rate)
             processed_chunks.append(next_chunk)
 
             print_info(curr_chunk, num_chunks, curr_rate)
