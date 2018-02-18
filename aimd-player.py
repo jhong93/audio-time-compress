@@ -68,8 +68,8 @@ def read_audio_file(filename):
             os.makedirs(TMP_DIR)
         infile = os.path.join(TMP_DIR, '{}.wav'.format(get_md5(filename)))
         if not os.path.exists(infile):
-            check_call(['ffmpeg', '-i', filename, infile], stdout=DEVNULL,
-                       stderr=STDOUT)
+            check_call(['ffmpeg', '-i', filename, '-ac', '1', infile],
+                        stdout=DEVNULL, stderr=STDOUT)
         print ('Converted file to wav:', infile)
     return wavfile.read(infile)
 
@@ -128,6 +128,8 @@ def print_info(curr_chunk, num_chunks, rate):
 def main(filename, add_inc, mult_dec, chunk_len, window_len, init_rate,
          algorithm, save_file):
     fs, raw_audio = read_audio_file(filename)
+    if len(raw_audio.shape) != 1:
+        raise Exception('Only mono wav files are supported')
     chunk_size = int(fs * chunk_len)
     num_chunks = math.ceil(len(raw_audio) / chunk_size)
 
