@@ -19,7 +19,7 @@ TMP_DIR = '/tmp/wav'
 MIN_PLAY_RATE = 1.0
 MAX_PLAY_RATE = 4.0
 
-DROP_KEY = Key.shift_r
+DROP_KEY = Key.alt_r
 LOCK_KEY = Key.ctrl_r
 
 OUTPUT_FS = 44100
